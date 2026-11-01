@@ -1,16 +1,16 @@
-# Web Serial VT100 Terminal
+# Web Serial Console
 
 Web Serial API と [Xterm.js](https://xtermjs.org/) をベースとし、 **「ターミナル（ブラウザ）側にコマンド履歴およびデバッグログ保存機能を持たせる」** ことで、組み込み機器側のCLI・デバッグロジックを極限までシンプルに保てるよう設計されています。
 
 [![License: MIT-0](https://img.shields.io/badge/License-MIT--0-blue.svg)](LICENSE)
 
-[![Web Serial VT100 Terminal](https://raw.githubusercontent.com/Embedead-Inside/web-serial-vt100-terminal/refs/heads/main/web-serial-vt100-terminal.png)](https://raw.githubusercontent.com/Embedead-Inside/web-serial-vt100-terminal/refs/heads/main/web-serial-vt100-terminal.png)
+[![Web Serial Console](https://raw.githubusercontent.com/Embedead-Inside/web-serial-console/refs/heads/main/web-serial-console.png)](https://raw.githubusercontent.com/Embedead-Inside/web-serial-console/refs/heads/main/web-serial-console.png)
 
 ---
 
 ## 主な機能
 
-- **単一ファイル構成**: ビルドツールやサーバーは不要です。`web-serial-vt100-terminal.html` をブラウザ（ChromeやEdgeなど）で開くだけで使用できます。
+- **単一ファイル構成**: ビルドツールやサーバーは不要です。`web-serial-console.html` をブラウザ（ChromeやEdgeなど）で開くだけで使用できます。
   - ※ Xterm.js は CDN (jsDelivr) から読み込むため、**初回はインターネット接続が必要**です。完全オフラインで使う場合は、Xterm.js のファイルをローカルに置き、HTML 内の `<link>` / `<script>` の URL を書き換えてください。
 - **高度なローカル行編集**:
   - ブラウザ側でコマンドをバッファリングし、左右のカーソル移動 (`←`/`→`)、バックスペース、Deleteキーによる編集が可能。
@@ -84,7 +84,9 @@ Web Serial API と [Xterm.js](https://xtermjs.org/) をベースとし、 **「�
 ## 使い方
 
 1. このリポジトリをクローンまたはダウンロードします。
-2. Web Serial API対応ブラウザ（Google Chrome、Microsoft Edgeなど）で `web-serial-vt100-terminal.html` を開きます（※ブラウザの仕様上、`file://` では制限される場合があるため、ローカルサーバー (`http://localhost` など) 経由での実行を推奨します）。
+2. Web Serial API対応ブラウザ（Google Chrome、Microsoft Edgeなど）で以下のいずれかのファイルを開きます。
+- web-serial-console.html （通常版：ソースコードの改変やデバッグをしたい方向け）
+- web-serial-console.min.html （圧縮版：軽量・高速動作。普段使い用）
 3. ボーレート（デフォルト: `115200 bps`）を選択し、**「接続」** ボタンをクリックします。
 4. 接続するシリアルデバイス（マイコンボードなど）を選択します。
 5. ターミナルにコマンドを入力して `Enter` で送信します。ログは **「ログ保存」** でファイルに保存できます。
@@ -104,7 +106,7 @@ Web Serial API と [Xterm.js](https://xtermjs.org/) をベースとし、 **「�
 
 ## 開発・改変する方へ
 
-ソースコードは `web-serial-vt100-terminal.html` 1ファイルで、JavaScript は `<script>` 内にまとまっています。誰でも修正しやすいよう、コメントは **Doxygen 形式**で統一しています。
+ソースコードは `web-serial-console.html` 1ファイルで、JavaScript は `<script>` 内にまとまっています。誰でも修正しやすいよう、コメントは **Doxygen 形式**で統一しています。
 
 ### コメント規約
 

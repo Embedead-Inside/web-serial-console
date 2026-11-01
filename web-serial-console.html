@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Web Serial VT100 Terminal</title>
+  <title>Web Serial Console</title>
   <!-- @brief Xterm.js のスタイルシート読み込み (CDN) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <!-- @brief Xterm.js 本体および FitAddon（画面サイズ自動調整）の読み込み (CDN) -->
@@ -50,7 +50,7 @@
   </style>
 </head>
 <body>
-  <h1>Web Serial VT100 Terminal</h1>
+  <h1>Web Serial Console</h1>
   
   <!-- @brief コントロールボタン群 (ボーレート選択 / 接続 / ログ操作 / タイムスタンプ切替) -->
   <div id="controls">
@@ -86,7 +86,7 @@
 
   <script>
     /**
-     * @file web-serial-vt100-terminal.html
+     * @file web-serial-console.html
      * @brief Web Serial API と Xterm.js を使用した VT100 ターミナル
      * @details
      * ブラウザだけでシリアルデバイスと対話するための単一ファイル製ターミナル。
@@ -109,7 +109,8 @@
      *  - 変数の説明は、宣言行の末尾に `///<` で記述する
      *  - 関連する宣言は defgroup コマンドでグループ化し、末尾に `end of grp_xxx` の目印コメントを付ける
      *  - 関数内部の補足説明は、通常の `//` コメントで記述する
-     *
+     */
+    /**
      * @copyright Copyright (c) 2026 Embedead-Inside
      * @license SPDX-License-Identifier: MIT-0
      */
@@ -174,7 +175,7 @@
     fitAddon.fit();
 
     term.focus();
-    term.writeln('=== Web Serial VT100 Terminal ===\r\n「接続」を押してデバイスを選択してください。\r\n');
+    term.writeln('=== Web Serial Console ===\r\n「接続」を押してデバイスを選択してください。\r\n');
 
     // file:// プロトコル実行時の警告表示
     if (window.location.protocol === 'file:') {
