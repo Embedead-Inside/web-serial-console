@@ -14,6 +14,7 @@
      */
     body { font-family: sans-serif; background: #121212; color: #e0e0e0; margin: 0; padding: 15px; }
     h1 { font-size: 1.3rem; margin: 0 0 10px; color: #00ff66; }
+    #appVersion { font-size: 0.75rem; font-weight: normal; color: #888; }
     #controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
     #quick-send-controls { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
     select { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; }
@@ -50,7 +51,7 @@
   </style>
 </head>
 <body>
-  <h1>Web Serial Console</h1>
+  <h1>Web Serial Console <span id="appVersion"></span></h1>
   
   <!-- @brief コントロールボタン群 (ボーレート選択 / 接続 / ログ操作 / タイムスタンプ切替) -->
   <div id="controls">
@@ -76,7 +77,7 @@
   
   <!-- @brief ターミナル描画領域 (Xterm.js がここに描画される) -->
   <div id="terminal-container"></div>
-  <div class="info">↑/↓: 履歴 | ←/→: カーソル移動 | ドラッグ選択 & Ctrl+C: コピー | 未選択時 Ctrl+C: キャンセル</div>
+  <div class="info">↑/↓: 履歴 | ←/→: カーソル移動 | ドラッグ選択 & Ctrl+C: コピー | Ctrl+V: 貼り付け | 未選択時 Ctrl+C: キャンセル</div>
 
   <!-- @brief クイック送信セクション (履歴プルダウンから選んで送信) -->
   <div id="quick-send-controls">
@@ -124,6 +125,7 @@
     // ---- 定数 ----
     const LOCAL_STORAGE_KEY = 'vt100_hist'; ///< ローカルストレージ保存用キー名
     const MAX_HISTORY_COUNT = 100;          ///< 最大保持ヒストリー件数
+    const APP_VERSION = '1.1.0';  ///< アプリのバージョン (セマンティックバージョニング: MAJOR.MINOR.PATCH)
 
     // ---- 状態管理変数 ----
     let serialPort = null;          ///< SerialPort オブジェクト
@@ -175,7 +177,7 @@
     fitAddon.fit();
 
     term.focus();
-    term.writeln('=== Web Serial Console ===\r\n「接続」を押してデバイスを選択してください。\r\n');
+    term.writeln('=== Web Serial Console v' + APP_VERSION + ' ===\r\n「接続」を押してデバイスを選択してください。\r\n');
 
     // file:// プロトコル実行時の警告表示
     if (window.location.protocol === 'file:') {
@@ -188,6 +190,9 @@
      * @return {HTMLElement} 該当要素
      */
     const $ = id => document.getElementById(id);
+
+    // 画面上部の見出しにバージョンを表示
+    $('appVersion').textContent = 'v' + APP_VERSION;
 
     /**
      * @brief 数値をゼロ埋めした文字列にする (日時の整形用)
@@ -689,7 +694,7 @@
      * @param {string} data Xterm.js から渡される入力文字列 (エスケープシーケンス含む)
      * @note 未接続の場合は何もしない。
      */
-    term.onData(async data => {
+    const handleTermInput = async data => {
       if (!serialPort?.writable) return;
 
       // 矢印キー（上：履歴前のコマンドへ）
@@ -785,51 +790,90 @@
           }
         }
       }
-    });
+    };
+    term.onData(handleTermInput);
 
     /**
-     * @brief Xterm.js カスタムキーハンドラ (コピーと入力キャンセル用)
+     * @brief Xterm.js カスタムキーハンドラ (コピー・貼り付け・入力キャンセル用)
      * @details
-     * Ctrl/Cmd+C のみを処理する。
-     *  - テキスト選択あり: クリップボードへコピーする
-     *  - 選択なし        : 入力中の内容を破棄し、割り込み (0x03) を送信する
+     * Ctrl/Cmd+C と Ctrl/Cmd+V を処理する。
+     *  - Ctrl/Cmd+V        : false を返して Xterm.js の既定処理 (^V 送出) を止め、
+     *                        ブラウザ標準の paste イベントを発火させる (処理は下の paste リスナー)
+     *  - Ctrl/Cmd+C 選択あり: クリップボードへコピーする
+     *  - Ctrl/Cmd+C 選択なし: 入力中の内容を破棄し、割り込み (0x03) を送信する
      * @param {KeyboardEvent} e キーイベント
      * @return {boolean} false で Xterm.js 側の既定処理を抑止、true で通常処理を継続
-     * @note Ctrl+V (貼り付け) は仕様上、独自処理しない。
+     * @warning Xterm.js は戻り値を `=== false` で判定するため、このハンドラを async 関数にしてはならない
+     *          (Promise が返り、return false が無視される)。非同期処理は await せずに実行する。
      */
-    term.attachCustomKeyEventHandler(async (e) => {
+    term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true;
 
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
 
+      // Ctrl+V / Cmd+V / Ctrl+Shift+V: Xterm.js に処理させず、ブラウザの paste イベントへ任せる
+      if (isCtrlOrCmd && key === 'v') return false;
+
       if (isCtrlOrCmd && key === 'c') {
         if (term.hasSelection()) {
-          const selectedText = term.getSelection();
-          try {
-            await navigator.clipboard.writeText(selectedText);
-          } catch (err) {
-            console.error('コピー失敗:', err);
-          }
-          return false;
-        } else {
-          if (serialPort?.writable) {
-            currentInputBuffer = '';
-            currentCursorPos = 0;
-            historyIndex = commandHistory.length;
-            expectedEchoString = '';
-            term.write('^C\r\n');
-            screenAtLineStart = true;
-            const writer = serialPort.writable.getWriter();
-            await writer.write(new TextEncoder().encode('\x03')); // 割り込みシグナル (Ctrl+C = 0x03)
-            writer.releaseLock();
-          }
-          return false;
+          // 選択あり: クリップボードへコピー
+          navigator.clipboard.writeText(term.getSelection())
+            .catch(err => console.error('コピー失敗:', err));
+        } else if (serialPort?.writable) {
+          // 選択なし: 入力を破棄し、割り込み (Ctrl+C = 0x03) を送信
+          currentInputBuffer = '';
+          currentCursorPos = 0;
+          historyIndex = commandHistory.length;
+          expectedEchoString = '';
+          term.write('^C\r\n');
+          screenAtLineStart = true;
+          sendDataToSerial('\x03').catch(err => console.error('送信失敗:', err));
         }
+        return false;
       }
 
       return true;
     });
+
+    const PASTE_CONFIRM_MULTILINE = true; ///< 複数行ペースト時に確認ダイアログを出すか
+    const PASTE_LINE_DELAY_MS = 50;       ///< 複数行ペースト時、1行送るごとの待ち時間 (ms)
+
+    /**
+     * @brief ペースト処理 (Ctrl+V / Cmd+V / Ctrl+Shift+V / 右クリック貼り付け)
+     * @details
+     * 改行を LF に統一し、制御文字を除去したうえで、既存の入力処理 (handleTermInput) に渡す。
+     *  - 1行のみ : カーソル位置へ挿入するだけで、送信はしない
+     *  - 複数行  : 最後の行以外を順に送信し (Enter 相当)、最後の行は入力バッファに残す
+     * @note capture フェーズで受け取り、Xterm.js 標準のペースト処理は stopPropagation で止める。
+     * @note 複数行を連続送信すると、エコーバック除去 (expectedEchoString) は最後の1行分しか追跡しない。
+     */
+    termContainer.addEventListener('paste', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!serialPort?.writable) return;
+
+      let text = (e.clipboardData || window.clipboardData).getData('text');
+      if (!text) return;
+
+      text = text.replace(/\r\n?/g, '\n')                    // 改行を LF に統一
+                 .replace(/\t/g, ' ')                        // タブは空白へ
+                 .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ''); // ESC 等の制御文字を除去 (LF は残す)
+
+      const lines = text.split('\n');
+      if (PASTE_CONFIRM_MULTILINE && lines.length > 1 &&
+          !confirm(`${lines.length - 1} 行分のコマンドを続けて送信します。よろしいですか？`)) {
+        term.focus();
+        return;
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const isLast = (i === lines.length - 1);
+        await handleTermInput(isLast ? lines[i] : lines[i] + '\n');
+        if (!isLast) await new Promise(r => setTimeout(r, PASTE_LINE_DELAY_MS));
+      }
+      term.focus();
+    }, true);
 
     /** @} */ // end of grp_input
 
